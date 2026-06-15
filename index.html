@@ -810,20 +810,18 @@ function showToast(msg, type) {
 }
 
 function loadFromSheets(market, callback) {
-  var url = API_URL + '?action=read&market=' + market;
-  fetch(url)
+  fetch(API_URL + '?action=read&market=' + market)
     .then(function(r){ return r.json(); })
     .then(function(res){
       if (res.success && res.data) {
-        // Convert sheet rows to app file objects
-        var loaded = res.data
+        markets[market] = res.data
           .filter(function(r){ return r.wbDate; })
           .map(function(r){
             return {
-              wbDate:       String(r.wbDate || ''),
+              wbDate:       String(r.wbDate || '').trim(),
               cycleStart:   '',
               cycleEnd:     '',
-              adsCycleDays: r.adsCycleDays || 0,
+              adsCycleDays: Number(r.adsCycleDays) || 0,
               adSpent:      String(r.adSpent || ''),
               leads:        String(r.leads || ''),
               closed:       String(r.closed || ''),
@@ -835,44 +833,47 @@ function loadFromSheets(market, callback) {
               synced:       true
             };
           });
-        markets[market] = loaded;
-        if (callback) callback();
       }
+      if (callback) callback();
     })
     .catch(function(err){
       console.error('Load error:', err);
-      showToast('Failed to load data', 'error');
+      showToast('Cannot load — check connection', 'error');
       if (callback) callback();
     });
 }
 
 function saveToSheets(fileObj, market) {
   var cycleDays = calcCycleDays(fileObj.cycleStart, fileObj.cycleEnd) || fileObj.adsCycleDays || 0;
-  var roasNum = parseFloat(fileObj.roas) || 0;
-  var rev = (parseFloat(fileObj.closed) || 0) * PRICE;
-  var attd = parseFloat(fileObj.attdRate) || 0;
-  var cr = parseFloat(fileObj.closeRate) || 0;
+  var roasNum   = parseFloat(fileObj.roas) || 0;
+  var rev       = (parseFloat(fileObj.closed) || 0) * PRICE;
 
   var payload = {
     wbDate:       fileObj.wbDate,
     adsCycleDays: cycleDays,
-    adSpent:      fileObj.adSpent || 0,
-    leads:        fileObj.leads || 0,
-    closed:       fileObj.closed || 0,
+    adSpent:      parseFloat(fileObj.adSpent) || 0,
+    leads:        parseFloat(fileObj.leads) || 0,
+    closed:       parseFloat(fileObj.closed) || 0,
     roas:         roasNum.toFixed(2),
     attdRate:     fileObj.attdRate || '',
     closeRate:    fileObj.closeRate || '',
     revenue:      rev
   };
 
-  var url = API_URL + '?action=write&market=' + market + '&payload=' + encodeURIComponent(JSON.stringify(payload));
-  fetch(url)
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'write', market: market, payload: payload })
+  })
     .then(function(r){ return r.json(); })
     .then(function(res){
       if (res.success) showToast('✓ Synced to Google Sheets', 'success');
-      else showToast('Sync failed', 'error');
+      else showToast('Sync failed: ' + (res.error||''), 'error');
     })
-    .catch(function(){ showToast('Sync error — check connection', 'error'); });
+    .catch(function(err){
+      console.error('Save error:', err);
+      showToast('Sync error — check connection', 'error');
+    });
 }
 
 // ══ STATE ══
