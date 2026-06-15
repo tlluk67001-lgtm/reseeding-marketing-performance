@@ -25,11 +25,9 @@
   --cyan:      #06b6d4;
   --green:     #10b981;
 
-  /* glow */
   --glow-blue: 0 0 24px rgba(79,126,248,0.25);
   --glow-cyan: 0 0 24px rgba(6,182,212,0.2);
 
-  /* emotion */
   --loss-hard:     #ef4444;
   --loss-hard-bg:  rgba(239,68,68,0.1);
   --loss-hard-bd:  rgba(239,68,68,0.25);
@@ -53,6 +51,47 @@
   --sidebar-w: 220px;
   --nav-h: 56px;
 }
+
+/* ══ LIGHT MODE ══ */
+body.light {
+  --bg:        #f0f2f5;
+  --bg2:       #e8eaed;
+  --surface:   #ffffff;
+  --surface2:  #f5f7fa;
+  --border:    rgba(0,0,0,0.08);
+  --border2:   rgba(0,0,0,0.13);
+
+  --t1: #0f1117;
+  --t2: #3d4255;
+  --t3: #6b7280;
+  --t4: #9ca3af;
+
+  --glow-blue: 0 0 24px rgba(79,126,248,0.15);
+
+  --loss-hard-bg:  rgba(239,68,68,0.08);
+  --loss-hard-bd:  rgba(239,68,68,0.2);
+  --loss-soft-bg:  rgba(249,115,22,0.08);
+  --loss-soft-bd:  rgba(249,115,22,0.2);
+  --be-bg:         rgba(234,179,8,0.08);
+  --be-bd:         rgba(234,179,8,0.2);
+  --ok-bg:         rgba(132,204,22,0.08);
+  --ok-bd:         rgba(132,204,22,0.2);
+  --good-bg:       rgba(16,185,129,0.08);
+  --good-bd:       rgba(16,185,129,0.2);
+  --great-bg:      rgba(6,182,212,0.08);
+  --great-bd:      rgba(6,182,212,0.2);
+}
+body.light .nav {
+  background: rgba(240,242,245,0.92);
+}
+body.light .sidebar {
+  background: #e8eaed;
+  border-right: 1px solid rgba(0,0,0,0.08);
+}
+body.light .year-card::after {
+  background: linear-gradient(135deg, rgba(79,126,248,0.03) 0%, transparent 60%);
+}
+body.light .inp[type="date"] { color-scheme: light; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
@@ -509,6 +548,16 @@ body {
   .cols-2 { grid-template-columns: 1fr; }
 }
 
+/* ══ THEME TOGGLE ══ */
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--t2);
+  transition: background .15s, color .15s;
+}
+.theme-toggle:hover { background: var(--surface2); color: var(--t1); }
+
 /* ══ TOAST ══ */
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -792,7 +841,7 @@ body {
 <script>
 // ══ CONSTANTS ══
 var PRICE = 3888, BE = 1.16;
-var API_URL = 'https://script.google.com/macros/s/AKfycby0Wz1fETSv4qohfSk28mVJ0cczC2MzN4Lr2CbCT8dSVwHA9EGn7k4XMpCJuA-ogkMnJg/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbyvSGTMvPseZr7UqKxmhiImxnHVV2konvm6lrsm1icK6IMBzy4P24Pf2Z33reWhgnx_HQ/exec';
 
 // ══ GOOGLE SHEETS SYNC ══
 function calcCycleDays(start, end) {
@@ -826,7 +875,7 @@ function loadFromSheets(market, callback) {
               leads:        String(r.leads || ''),
               closed:       String(r.closed || ''),
               roas:         parseFloat(r.roas) || 0,
-              attdRate:     String(r.attdRate || ''),
+              attd:         String(r.attd || ''),
               closeRate:    String(r.closeRate || ''),
               revenue:      String(r.revenue || ''),
               timeline:     new Array(slots.length).fill(''),
@@ -849,16 +898,20 @@ function saveToSheets(fileObj, market) {
   var rev       = (parseFloat(fileObj.closed) || 0) * PRICE;
 
   // Normalize date to YYYY-MM-DD string
-  var wbDateNorm = fileObj.wbDate ? String(fileObj.wbDate).trim() : '';
+  var wbDateNorm = fileObj.wbDate ? String(fileObj.wbDate).trim().substring(0, 10) : '';
+
+  // Get 9pm attendance headcount
+  var attdPax = parseFloat((document.getElementById('d-attd') ? 
+    document.getElementById('d-attd').value : '').replace(' pax','')) || 0;
 
   var payload = {
     wbDate:       wbDateNorm,
     adsCycleDays: cycleDays,
     adSpent:      parseFloat(fileObj.adSpent) || 0,
     leads:        parseFloat(fileObj.leads) || 0,
+    attd:         attdPax,
     closed:       parseFloat(fileObj.closed) || 0,
     roas:         roasNum.toFixed(2),
-    attdRate:     fileObj.attdRate || '',
     closeRate:    fileObj.closeRate || '',
     revenue:      rev
   };
@@ -1265,6 +1318,22 @@ function calc() {
   document.getElementById('ov-rev-sub').textContent=closed?fmtRM(rev)+' revenue':'';
 }
 
+// ══ THEME TOGGLE ══
+function toggleTheme() {
+  var isLight = document.body.classList.toggle('light');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-icon-moon').style.display = isLight ? 'none' : 'block';
+  document.getElementById('theme-icon-sun').style.display  = isLight ? 'block' : 'none';
+}
+function initTheme() {
+  var saved = localStorage.getItem('theme');
+  if (saved === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('theme-icon-moon').style.display = 'none';
+    document.getElementById('theme-icon-sun').style.display  = 'block';
+  }
+}
+
 // ══ MANUAL SYNC ══
 function manualSync() {
   var fs = files();
@@ -1274,6 +1343,7 @@ function manualSync() {
 }
 
 // ══ INIT ══
+initTheme();
 // Load both markets from Sheets on startup
 showToast('Loading data...', 'info');
 var loaded = 0;
