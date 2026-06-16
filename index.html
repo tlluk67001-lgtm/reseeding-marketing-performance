@@ -845,7 +845,7 @@ body {
 <script>
 // ══ CONSTANTS ══
 var PRICE = 3888, BE = 1.16;
-var API_URL = 'https://script.google.com/macros/s/AKfycbzsyjGol3cSEUblCjkFog2Q9h30uAvGsi9ne-3e0gp7CvqPa9K91xX7ocrza2qmLu0QDw/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbzNS0i45vFcCcFDIbpLSchHJdm2ZsPA3VEsxy6xmwSt6z_SMnLV7eAahHt8zHjYi5xZRw/exec';
 
 // ══ GOOGLE SHEETS SYNC ══
 function calcCycleDays(start, end) {
@@ -880,7 +880,16 @@ function loadFromSheets(market, callback) {
                 String(epoch.getUTCMonth()+1).padStart(2,'0') + '-' +
                 String(epoch.getUTCDate()).padStart(2,'0');
             } else {
-              wbDateStr = String(rawDate).trim().substring(0, 10);
+              var s = String(rawDate).trim();
+              // If ISO format with time (e.g. "2026-06-14T16:00:00.000Z"), parse as UTC
+              if (s.indexOf('T') > -1) {
+                var d = new Date(s);
+                wbDateStr = d.getUTCFullYear() + '-' +
+                  String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+                  String(d.getUTCDate()).padStart(2,'0');
+              } else {
+                wbDateStr = s.substring(0, 10);
+              }
             }
             return {
               wbDate:       wbDateStr,
