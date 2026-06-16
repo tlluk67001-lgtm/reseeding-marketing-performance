@@ -850,8 +850,12 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbzNS0i45vFcCcFDIbpLSchHJd
 // ══ GOOGLE SHEETS SYNC ══
 function calcCycleDays(start, end) {
   if (!start || !end) return 0;
-  var s = new Date(start), e = new Date(end);
-  return Math.round((e - s) / (1000*60*60*24)) + 1;
+  // Parse as UTC to avoid timezone day-shift
+  function toUTC(str) {
+    var p = String(str).substring(0,10).split('-');
+    return Date.UTC(+p[0], +p[1]-1, +p[2]);
+  }
+  return Math.round((toUTC(end) - toUTC(start)) / (1000*60*60*24)) + 1;
 }
 
 function showToast(msg, type) {
@@ -1001,19 +1005,28 @@ function getMood(r) {
 // ══ HELPERS ══
 function fmtDate(s) {
   if (!s) return '';
-  var p = s.split('-');
-  if (p.length < 3) return s;
-  // Use UTC to avoid timezone day-shift
-  var d = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
-  return d.toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+  // Clean the string — take only YYYY-MM-DD part, never use Date constructor
+  var clean = String(s).trim().substring(0, 10);
+  var p = clean.split('-');
+  if (p.length < 3 || !p[0] || !p[1] || !p[2]) return s;
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var day = parseInt(p[2], 10);
+  var month = months[parseInt(p[1], 10) - 1];
+  var year = p[0];
+  if (!month || isNaN(day)) return clean;
+  return day + ' ' + month + ' ' + year;
 }
 function fmtRM(n) { return 'RM ' + n.toLocaleString('en-MY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function yearKey(d)  { return d ? String(d).slice(0,4) : ''; }
 function monthKey(d) { return d ? String(d).slice(0,7) : ''; }
 function monthLabel(k) {
+  if (!k) return '';
   var p = k.split('-');
-  var d = new Date(Date.UTC(+p[0], +p[1]-1, 1));
-  return d.toLocaleDateString('en-MY',{month:'long',year:'numeric',timeZone:'UTC'});
+  if (p.length < 2) return k;
+  var months = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+  var month = months[parseInt(p[1], 10) - 1] || '';
+  return month + ' ' + p[0];
 }
 function monthNum(k) { return parseInt(k.split('-')[1]); }
 function files() { return markets[curMarket]; }
