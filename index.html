@@ -870,8 +870,20 @@ function loadFromSheets(market, callback) {
         markets[market] = res.data
           .filter(function(r){ return r.wbDate; })
           .map(function(r){
+            // Normalize date from Sheets (could be string, Date object, or serial number)
+            var rawDate = r.wbDate;
+            var wbDateStr = '';
+            if (typeof rawDate === 'number') {
+              // Sheets serial number (days since 1899-12-30)
+              var epoch = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+              wbDateStr = epoch.getUTCFullYear() + '-' +
+                String(epoch.getUTCMonth()+1).padStart(2,'0') + '-' +
+                String(epoch.getUTCDate()).padStart(2,'0');
+            } else {
+              wbDateStr = String(rawDate).trim().substring(0, 10);
+            }
             return {
-              wbDate:       String(r.wbDate || '').trim(),
+              wbDate:       wbDateStr,
               cycleStart:   '',
               cycleEnd:     '',
               adsCycleDays: Number(r.adsCycleDays) || 0,
