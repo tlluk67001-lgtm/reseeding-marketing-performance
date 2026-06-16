@@ -845,7 +845,7 @@ body {
 <script>
 // ══ CONSTANTS ══
 var PRICE = 3888, BE = 1.16;
-var API_URL = 'https://script.google.com/macros/s/AKfycbzbTRwAtFSjHMMzECU6i8txKZ1wGsIi_e2S7NLuoXkQQ7fhz5m-lfxpn4dzKJ_gxo1PRg/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbzsyjGol3cSEUblCjkFog2Q9h30uAvGsi9ne-3e0gp7CvqPa9K91xX7ocrza2qmLu0QDw/exec';
 
 // ══ GOOGLE SHEETS SYNC ══
 function calcCycleDays(start, end) {
@@ -988,14 +988,18 @@ function getMood(r) {
 function fmtDate(s) {
   if (!s) return '';
   var p = s.split('-');
-  return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});
+  if (p.length < 3) return s;
+  // Use UTC to avoid timezone day-shift
+  var d = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
+  return d.toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
 }
 function fmtRM(n) { return 'RM ' + n.toLocaleString('en-MY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-function yearKey(d)  { return d ? d.slice(0,4) : ''; }
-function monthKey(d) { return d ? d.slice(0,7) : ''; }
+function yearKey(d)  { return d ? String(d).slice(0,4) : ''; }
+function monthKey(d) { return d ? String(d).slice(0,7) : ''; }
 function monthLabel(k) {
   var p = k.split('-');
-  return new Date(+p[0],+p[1]-1,1).toLocaleDateString('en-MY',{month:'long',year:'numeric'});
+  var d = new Date(Date.UTC(+p[0], +p[1]-1, 1));
+  return d.toLocaleDateString('en-MY',{month:'long',year:'numeric',timeZone:'UTC'});
 }
 function monthNum(k) { return parseInt(k.split('-')[1]); }
 function files() { return markets[curMarket]; }
