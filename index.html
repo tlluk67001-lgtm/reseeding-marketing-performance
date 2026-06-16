@@ -862,6 +862,31 @@ function showToast(msg, type) {
   setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
 
+function parseSheetDate(rawDate) {
+  // Always returns YYYY-MM-DD string, handles all Sheets date formats
+  if (!rawDate) return '';
+  if (typeof rawDate === 'number') {
+    // Sheets serial number (days since 1899-12-30), use UTC
+    var epoch = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+    return epoch.getUTCFullYear() + '-' +
+      String(epoch.getUTCMonth()+1).padStart(2,'0') + '-' +
+      String(epoch.getUTCDate()).padStart(2,'0');
+  }
+  var s = String(rawDate).trim();
+  if (!s) return '';
+  // Already plain YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // ISO with time e.g. "2026-06-14T16:00:00.000Z" — use UTC date
+  if (s.indexOf('T') > -1 || s.indexOf('Z') > -1) {
+    var d = new Date(s);
+    return d.getUTCFullYear() + '-' +
+      String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+      String(d.getUTCDate()).padStart(2,'0');
+  }
+  // Fallback — take first 10 chars
+  return s.substring(0, 10);
+}
+
 function loadFromSheets(market, callback) {
   fetch(API_URL + '?action=read&market=' + market)
     .then(function(r){ return r.json(); })
@@ -870,27 +895,7 @@ function loadFromSheets(market, callback) {
         markets[market] = res.data
           .filter(function(r){ return r.wbDate; })
           .map(function(r){
-            // Normalize date from Sheets (could be string, Date object, or serial number)
-            var rawDate = r.wbDate;
-            var wbDateStr = '';
-            if (typeof rawDate === 'number') {
-              // Sheets serial number (days since 1899-12-30)
-              var epoch = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-              wbDateStr = epoch.getUTCFullYear() + '-' +
-                String(epoch.getUTCMonth()+1).padStart(2,'0') + '-' +
-                String(epoch.getUTCDate()).padStart(2,'0');
-            } else {
-              var s = String(rawDate).trim();
-              // If ISO format with time (e.g. "2026-06-14T16:00:00.000Z"), parse as UTC
-              if (s.indexOf('T') > -1) {
-                var d = new Date(s);
-                wbDateStr = d.getUTCFullYear() + '-' +
-                  String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
-                  String(d.getUTCDate()).padStart(2,'0');
-              } else {
-                wbDateStr = s.substring(0, 10);
-              }
-            }
+            var wbDateStr = parseSheetDate(r.wbDate);
             return {
               wbDate:       wbDateStr,
               cycleStart:   '',
@@ -923,7 +928,7 @@ function saveToSheets(fileObj, market) {
   var rev       = (parseFloat(fileObj.closed) || 0) * PRICE;
 
   // Normalize date to YYYY-MM-DD string
-  var wbDateNorm = fileObj.wbDate ? String(fileObj.wbDate).trim().substring(0, 10) : '';
+  var wbDateNorm = fileObj.wbDate ? String(fileObj.wbDate).trim().replace(/T.*$/, '').substring(0, 10) : '';
 
   // Get 9pm attendance headcount
   var attdPax = parseFloat((document.getElementById('d-attd') ? 
