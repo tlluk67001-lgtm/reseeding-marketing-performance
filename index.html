@@ -648,6 +648,10 @@ body {
       </div>
       <div class="nav-right">
         <div class="nav-market-badge" id="nav-market-badge">🇲🇾 Malaysia</div>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <svg id="theme-icon-moon" width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M13 9.5A6 6 0 0 1 5.5 2a6.5 6.5 0 1 0 7.5 7.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg id="theme-icon-sun" width="15" height="15" viewBox="0 0 15 15" fill="none" style="display:none"><circle cx="7.5" cy="7.5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3 3l1 1M11 11l1 1M11 3l-1 1M3 11l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
         <button class="sync-btn" onclick="manualSync()" title="Sync to Sheets">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6a4 4 0 1 1-1.2-2.8M10 2v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Sync
@@ -904,11 +908,17 @@ function saveToSheets(fileObj, market) {
   var attdPax = parseFloat((document.getElementById('d-attd') ? 
     document.getElementById('d-attd').value : '').replace(' pax','')) || 0;
 
+  // Calculate CPL
+  var cplVal = (parseFloat(fileObj.adSpent) && parseFloat(fileObj.leads))
+    ? (parseFloat(fileObj.adSpent) / parseFloat(fileObj.leads)).toFixed(2)
+    : '';
+
   var payload = {
     wbDate:       wbDateNorm,
     adsCycleDays: cycleDays,
     adSpent:      parseFloat(fileObj.adSpent) || 0,
     leads:        parseFloat(fileObj.leads) || 0,
+    cpl:          cplVal,
     attd:         attdPax,
     closed:       parseFloat(fileObj.closed) || 0,
     roas:         roasNum.toFixed(2),
