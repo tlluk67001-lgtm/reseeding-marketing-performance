@@ -418,7 +418,8 @@ function setNav(title,sub,showBack,showAdd){
 function goTo(screen){
   curScreen=screen;
   var mkt=curMarket==='MY'?'Malaysia':'Taiwan';
-  if(screen==='years'){renderYears();showView('view-years');setNav(mkt+' Webinar','跟莊策略',false,true);}
+  if(screen==='years'){renderYears();showView('view-years');setNav(mkt+' Webinar','跟莊策略',false,true);
+    document.getElementById('years-title').textContent=mkt+' Webinar';}
   else if(screen==='months'){renderMonths();showView('view-months');setNav(curYear,mkt,true,true);}
   else if(screen==='files'){renderFiles();showView('view-files');setNav(curYear+' · '+curMonth,mkt,true,true);}
   else if(screen==='detail'){showView('view-detail');setNav(curYear+' · '+curMonth,'跟莊策略',true,false);}
