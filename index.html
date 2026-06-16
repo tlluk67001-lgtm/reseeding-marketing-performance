@@ -701,28 +701,23 @@ body {
         <div class="view" id="view-new">
           <div class="page-hero">
             <div class="page-title">New File</div>
-            <div class="page-sub" id="new-sub">选日期，自动归入对应月份</div>
+            <div class="page-sub" id="new-sub">填入名字和广告天数</div>
           </div>
           <div class="card">
             <div class="field">
-              <label>Webinar Date</label>
-              <input type="date" id="inp-wbdate" class="inp">
+              <label>Webinar Name / Date</label>
+              <input type="text" id="inp-wbdate" class="inp" placeholder="e.g. 18 Jun 2026 or June Batch 1">
             </div>
             <div class="field">
-              <label>Ads Cycle Period</label>
-              <div class="date-range-wrap">
-                <input type="date" id="inp-start" class="inp" oninput="previewCycle()">
-                <div class="date-sep">–</div>
-                <input type="date" id="inp-end" class="inp" oninput="previewCycle()">
-              </div>
-              <div class="cycle-preview" id="cycle-preview"></div>
+              <label>Ads Cycle (days)</label>
+              <input type="number" id="inp-cycledays" class="inp" placeholder="e.g. 14" inputmode="numeric" min="1">
             </div>
           </div>
           <button class="btn-primary" onclick="createFile()">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>
             Create &amp; Open File
           </button>
-          <div class="err-msg" id="new-err">Please fill in all three dates.</div>
+          <div class="err-msg" id="new-err">Please fill in a webinar name.</div>
         </div>
 
         <!-- VIEW: DETAIL -->
@@ -899,7 +894,8 @@ function loadFromSheets(market, callback) {
         markets[market] = res.data
           .filter(function(r){ return r.wbDate; })
           .map(function(r){
-            var wbDateStr = parseSheetDate(r.wbDate);
+            // wbDate is stored as plain text - use directly
+            var wbDateStr = String(r.wbDate || '').trim();
             return {
               wbDate:       wbDateStr,
               cycleStart:   '',
@@ -932,7 +928,7 @@ function saveToSheets(fileObj, market) {
   var rev       = (parseFloat(fileObj.closed) || 0) * PRICE;
 
   // Normalize date to YYYY-MM-DD string
-  var wbDateNorm = fileObj.wbDate ? String(fileObj.wbDate).trim().replace(/T.*$/, '').substring(0, 10) : '';
+  var wbDateNorm = fileObj.wbDate ? String(fileObj.wbDate).trim() : '';
 
   // Get 9pm attendance headcount
   var attdPax = parseFloat((document.getElementById('d-attd') ? 
@@ -1017,16 +1013,23 @@ function fmtDate(s) {
   return day + ' ' + month + ' ' + year;
 }
 function fmtRM(n) { return 'RM ' + n.toLocaleString('en-MY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-function yearKey(d)  { return d ? String(d).slice(0,4) : ''; }
-function monthKey(d) { return d ? String(d).slice(0,7) : ''; }
+function yearKey(d) {
+  if (!d) return 'Unknown';
+  var s = String(d);
+  // Try to find 4-digit year
+  var m = s.match(/\b(20\d{2})\b/);
+  if (m) return m[1];
+  return s.slice(0,4) || 'Unknown';
+}
+function monthKey(d) {
+  if (!d) return 'Unknown-00';
+  // For text names, group everything under year only (use year + '-00')
+  return yearKey(d) + '-00';
+}
 function monthLabel(k) {
   if (!k) return '';
-  var p = k.split('-');
-  if (p.length < 2) return k;
-  var months = ['January','February','March','April','May','June',
-                'July','August','September','October','November','December'];
-  var month = months[parseInt(p[1], 10) - 1] || '';
-  return month + ' ' + p[0];
+  // k is like "2026-00" — just return the year
+  return k.split('-')[0];
 }
 function monthNum(k) { return parseInt(k.split('-')[1]); }
 function files() { return markets[curMarket]; }
@@ -1108,7 +1111,7 @@ function goTo(screen) {
   } else if (isDetail) {
     showView('view-detail');
     var f = files()[cur];
-    setBreadcrumb([mktLabel, curYearKey, monthLabel(curMonthKey), fmtDate(f.wbDate)]);
+    setBreadcrumb([mktLabel, curYearKey, f.wbDate]);
   }
 }
 
@@ -1159,7 +1162,7 @@ function renderYears() {
 function renderMonths(yf) {
   var el = document.getElementById('months-list'); el.innerHTML = '';
   document.getElementById('months-title').textContent = yf;
-  document.getElementById('months-sub').textContent = yf + ' · 选月份';
+  document.getElementById('months-sub').textContent = yf + ' · All webinars';
   var fs = files().filter(function(f){ return yearKey(f.wbDate)===yf; });
   var months = {};
   fs.forEach(function(f){ var k=monthKey(f.wbDate); if(!months[k]) months[k]=[]; months[k].push(f); });
@@ -1195,7 +1198,7 @@ function renderMonths(yf) {
 // ══ RENDER FILES ══
 function renderFiles(mk) {
   var el = document.getElementById('files-list'); el.innerHTML='';
-  document.getElementById('files-title').textContent = monthLabel(mk);
+  document.getElementById('files-title').textContent = curYearKey || monthLabel(mk);
   var group = files().filter(function(f){ return monthKey(f.wbDate)===mk; });
   document.getElementById('files-sub').textContent = group.length+' webinar file'+(group.length!==1?'s':'');
   if (!group.length) {
@@ -1216,8 +1219,8 @@ function renderFiles(mk) {
     card.onclick = function(){ cur=idx; openDetail(idx); };
     card.innerHTML =
       '<div class="fc-top">'+
-        '<div><div class="fc-date">'+fmtDate(f.wbDate)+'</div>'+
-        '<div class="fc-cycle">Ads cycle: '+fmtDate(f.cycleStart)+' – '+fmtDate(f.cycleEnd)+'</div></div>'+
+        '<div><div class="fc-date">'+f.wbDate+'</div>'+
+        '<div class="fc-cycle">'+(f.adsCycleDays?'Ads cycle: '+f.adsCycleDays+' days':'')+'</div></div>'+
         '<div class="fc-chevron"><svg width="6" height="10" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4L1 9" stroke="#5a6285" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'+
       '</div>'+
       '<div class="fc-stats">'+
@@ -1234,33 +1237,30 @@ function mkChip(label,val,color){
 
 // ══ NEW FILE ══
 function showNew() {
-  ['inp-wbdate','inp-start','inp-end'].forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('cycle-preview').innerHTML='';
+  var wbEl = document.getElementById('inp-wbdate');
+  var cyEl = document.getElementById('inp-cycledays');
+  if (wbEl) wbEl.value = '';
+  if (cyEl) cyEl.value = '';
   document.getElementById('new-err').style.display='none';
   prevScreen = curScreen==='files' ? 'files' : curScreen==='months' ? 'months' : 'years';
   goTo('new');
 }
-function previewCycle() {
-  var s=document.getElementById('inp-start').value, e=document.getElementById('inp-end').value;
-  var el=document.getElementById('cycle-preview');
-  if(s&&e) el.innerHTML='Cycle: <strong>'+fmtDate(s)+' – '+fmtDate(e)+'</strong>';
-  else if(s) el.innerHTML='Start: <strong>'+fmtDate(s)+'</strong>';
-  else el.innerHTML='';
-}
+function previewCycle() { /* removed - now using text input */ }
 function createFile() {
-  var d=document.getElementById('inp-wbdate').value,
-      s=document.getElementById('inp-start').value,
-      e=document.getElementById('inp-end').value;
-  if(!d||!s||!e){ document.getElementById('new-err').style.display='block'; return; }
+  var d = document.getElementById('inp-wbdate').value.trim();
+  var days = document.getElementById('inp-cycledays').value.trim();
+  if (!d) { document.getElementById('new-err').style.display='block'; return; }
   document.getElementById('new-err').style.display='none';
   var fs = files();
-  fs.push({wbDate:d,cycleStart:s,cycleEnd:e,adSpent:'',leads:'',closed:'',timeline:new Array(slots.length).fill(''),roas:0});
-  cur=fs.length-1;
-  curMonthKey=monthKey(d);
-  curYearKey=yearKey(d);
-  var f=fs[cur];
-  document.getElementById('d-date').textContent=fmtDate(f.wbDate);
-  document.getElementById('d-cycle').textContent='Ads cycle: '+fmtDate(f.cycleStart)+' – '+fmtDate(f.cycleEnd);
+  fs.push({wbDate:d, adsCycleDays: parseInt(days)||0, adSpent:'',leads:'',closed:'',timeline:new Array(slots.length).fill(''),roas:0});
+  cur = fs.length-1;
+  // Group by first 4 chars as year if numeric, else use current year
+  var yearGuess = /^\d{4}/.test(d) ? d.substring(0,4) : String(new Date().getFullYear());
+  curYearKey = yearGuess;
+  curMonthKey = yearGuess + '-00'; // group under year
+  var f = fs[cur];
+  document.getElementById('d-date').textContent = f.wbDate;
+  document.getElementById('d-cycle').textContent = f.adsCycleDays ? 'Ads cycle: ' + f.adsCycleDays + ' days' : '';
   document.getElementById('d-spent').value='';
   document.getElementById('d-leads').value='';
   document.getElementById('d-closed').value='';
@@ -1274,8 +1274,8 @@ function openDetail(idx) {
   var f=files()[idx];
   curMonthKey=monthKey(f.wbDate);
   curYearKey=yearKey(f.wbDate);
-  document.getElementById('d-date').textContent=fmtDate(f.wbDate);
-  document.getElementById('d-cycle').textContent='Ads cycle: '+fmtDate(f.cycleStart)+' – '+fmtDate(f.cycleEnd);
+  document.getElementById('d-date').textContent = f.wbDate || '—';
+  document.getElementById('d-cycle').textContent = f.adsCycleDays ? 'Ads cycle: ' + f.adsCycleDays + ' days' : '';
   document.getElementById('d-spent').value=f.adSpent||'';
   document.getElementById('d-leads').value=f.leads||'';
   document.getElementById('d-closed').value=f.closed||'';
